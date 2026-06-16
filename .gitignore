@@ -1,0 +1,8 @@
+checkpoints/
+data/
+outputs/
+kjob/
+swanlog/
+
+**/__pycache__/
+*.out

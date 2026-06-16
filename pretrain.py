@@ -12,12 +12,13 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 import tqdm
-import wandb
+import swanlab as wandb
 import coolname
 import hydra
 import pydantic
 from omegaconf import DictConfig
 from adam_atan2 import AdamATan2
+from torch.optim import AdamW
 
 from puzzle_dataset import PuzzleDataset, PuzzleDatasetConfig, PuzzleDatasetMetadata
 from utils.functions import load_model_class, get_model_source_path
@@ -147,9 +148,9 @@ def create_model(config: PretrainConfig, train_metadata: PuzzleDatasetMetadata, 
     # Optimizers and lr
     if config.arch.puzzle_emb_ndim == 0:
         optimizers = [
-            AdamATan2(
+            AdamW(
                 model.parameters(),
-                lr=0,  # Needs to be set by scheduler
+                lr=config.lr,
                 weight_decay=config.weight_decay,
                 betas=(config.beta1, config.beta2)
             )
@@ -177,9 +178,9 @@ def create_model(config: PretrainConfig, train_metadata: PuzzleDatasetMetadata, 
                 weight_decay=config.puzzle_emb_weight_decay,
                 world_size=world_size
             ),
-            AdamATan2(
+            AdamW(
                 model.parameters(),
-                lr=0,  # Needs to be set by scheduler
+                lr=config.lr,
                 weight_decay=config.weight_decay,
                 betas=(config.beta1, config.beta2)
             )
@@ -507,8 +508,9 @@ def save_code_and_config(config: PretrainConfig):
     with open(config_file, "wt") as f:
         yaml.dump(config.model_dump(), f)
 
-    # Log code
-    wandb.run.log_code(config.checkpoint_path)
+    # Log code if the tracking backend supports the wandb-style API.
+    if hasattr(wandb.run, "log_code"):
+        wandb.run.log_code(config.checkpoint_path)
 
 
 def load_synced_config(hydra_config: DictConfig, rank: int, world_size: int) -> PretrainConfig:
